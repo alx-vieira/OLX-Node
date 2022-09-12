@@ -8,6 +8,38 @@ const State = require('../models/State');
 module.exports = {
 
     signIn: async (req, res) => {
+        const errors = validationResult(req);
+        if(!errors.isEmpty()) {
+            res.json({ error: errors.mapped() });
+            return;
+        }
+
+        const data = matchedData(req);
+
+        // Validando E-mail
+        const user = await User.findOne({ email: data.email });
+
+        if(!user) {
+            res.json({ error: 'E-mail e/ou senha inválidos' });
+            return;
+        }
+
+        // Validando Password
+        const match = await bcrypt.compare(data.password, user.passwordHash);
+
+        if(!match) {
+            res.json({ error: 'E-mail e/ou senha inválidos' });
+            return;
+        }
+
+        // Gerando novo Token
+        const payload = (Date.now() + Math.random()).toString();
+        const token = await bcrypt.hash(payload, 10);
+
+        user.token = token;
+        await user.save();
+
+        res.json({ token, email: data.email });
 
     },
 
@@ -54,7 +86,7 @@ module.exports = {
         // Password
         const passwordHash = await bcrypt.hash(data.password, 10);
 
-        // Token
+        // Gerando Token
         const payload = (Date.now() + Math.random()).toString();
         const token = await bcrypt.hash(payload, 10);
 

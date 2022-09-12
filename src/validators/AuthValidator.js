@@ -30,6 +30,21 @@ module.exports = {
             },
             errorMessage: 'Estado precisa ter pelo menos 4 caracteres'
         }
+    }),
+
+    signIn: checkSchema({
+        email: {
+            isEmail: true,
+            normalizeEmail: true,
+            errorMessage: 'Email inválido'
+        },
+        password: {
+            notEmpty: true,
+            isLength: {
+                options: { min: 4 }
+            },
+            errorMessage: 'Senha precisa ter pelo menos 4 caracteres'
+        }
     })
 
 };

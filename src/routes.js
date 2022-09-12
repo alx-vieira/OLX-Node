@@ -17,7 +17,7 @@ route.get('/ping', (req, res) => {
 route.get('/states', Auth.private, UserController.getStates);
 
 // Login
-route.post('/user/signin', AuthController.signIn);
+route.post('/user/signin', AuthValidator.signIn, AuthController.signIn);
 route.post('/user/signup', AuthValidator.signUp, AuthController.signUp);
 
 // User Data
