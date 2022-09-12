@@ -7,6 +7,8 @@ const UserController = require('./controllers/UserController');
 
 const Auth = require('./middlewares/Auth');
 
+const AuthValidator = require('./validators/AuthValidator');
+
 route.get('/ping', (req, res) => {
     res.json({ pong: true });
 });
@@ -16,7 +18,7 @@ route.get('/states', Auth.private, UserController.getStates);
 
 // Login
 route.post('/user/signin', AuthController.signIn);
-route.post('/user/signup', AuthController.signUp);
+route.post('/user/signup', AuthValidator.signUp, AuthController.signUp);
 
 // User Data
 route.get('/user/me', Auth.private, UserController.info);
