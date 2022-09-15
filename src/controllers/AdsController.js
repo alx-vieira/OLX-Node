@@ -4,6 +4,7 @@ const jimp = require('jimp');
 const Category = require('../models/Category');
 const User = require('../models/User');
 const Ad = require('../models/Ad');
+const State = require('../models/State');
 
 const addImage = async (buffer) => {
     let newName = `${uuid()}.jpg`;
@@ -38,6 +39,13 @@ module.exports = {
         if(!title || !cat) {
             res.json({ error: 'Título e/ou categoria não foram preenchidos' });
             return;
+        }
+
+        if(cat) {
+            const c = await Category.findOne({ slug: cat }).exec();
+            if(c) {
+                cat = c._id.toString();
+            }
         }
 
         if(price) {
@@ -92,6 +100,60 @@ module.exports = {
     },
 
     getList: async (req, res) => {
+        let { sort = 'asc', offset = 0, limit = 8, search, cat, state } = req.query;
+        let total = 0;
+
+        let filters = { status: true };
+
+        if(search) {
+            filters.title = { '$regex': search, '$options': 'i' };
+        }
+
+        if(cat) {
+            const c = await Category.findOne({ slug: cat }).exec();
+            if(c) {
+                filters.category = c._id.toString();
+            }
+        }
+
+        if(state) {
+            const st = await State.findOne({ name: state.toUpperCase() }).exec();
+            if(st) {
+                filters.state = st._id.toString();
+            }
+        }
+
+        const adsTotal = await Ad.find(filters).exec();
+        total = adsTotal.length;
+
+        const adsData = await Ad.find(filters)
+            .sort({ dateCreated: (sort == 'desc'?-1:1) })
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .exec();
+
+        let ads = [];
+
+        for(let i in adsData) {
+            let image;
+
+            let defaultImg = await adsData[i].images.find(e => e.default);
+            if(defaultImg) {
+                image = `${process.env.BASE}/media/${defaultImg.url}`;
+            } else {
+                image = `${process.env.BASE}/media/default.jpg`;
+            }
+
+            ads.push({
+                id: adsData[i]._id,
+                title: adsData[i].title,
+                price: adsData[i].price,
+                priceNegotiable: adsData[i].priceNegotiable,
+                image
+            });
+        }
+
+        res.json({ ads, total });
 
     },
 
