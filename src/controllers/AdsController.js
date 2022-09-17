@@ -158,7 +158,78 @@ module.exports = {
     },
 
     getItem: async (req, res) => {
+        let { id, other = null } = req.query;
 
+        if(!id) {
+            res.json({ error: 'Id do produto é obrigatório' });
+            return;
+        }
+        
+        if(id.length <= 12) {
+            res.json({ error: 'Não é um id válido' });
+            return;
+        }
+
+        const ad = await Ad.findById(id).exec();
+        if(!ad) {
+            res.json({ error: 'Produto não encontrado.' });
+            return;
+        }
+
+        ad.views++;
+        ad.save();
+
+        let images = [];
+        for(let i in ad.images) {
+            images.push(`${process.env.BASE}/media/${ad.images[i].url}`);
+        }
+
+        let category = await Category.findById(ad.category).exec();
+        let userInfo = await User.findById(ad.idUser).exec();
+        let stateInfo = await State.findById(ad.state).exec();
+
+        let others = [];
+        if(other) {
+            const otherData = await Ad.find({ status: true, idUser: ad.idUser }).exec();
+
+            for(let i in otherData) {
+                if(otherData[i]._id.toString() != ad._id.toString()) {
+                    let image = `${process.env.BASE}/media/default.jpg`;
+
+                    let defaultImg = otherData[i].images.find(e => e.default);
+                    if(defaultImg) {
+                        image = `${process.env.BASE}/media/${defaultImg.url}`;
+                    }
+
+                    others.push({
+                        id: otherData[i]._id,
+                        title: otherData[i].title,
+                        price: otherData[i].price,
+                        priceNegotiable: otherData[i].priceNegotiable,
+                        image
+                    });
+                }
+            }
+        }
+
+        res.json({
+            id: ad.id,
+            title: ad.title,
+            price: ad.price,
+            priceNegotiable: ad.priceNegotiable,
+            description: ad.description,
+            dateCreated: ad.dateCreated,
+            views: ad.views,
+            images,
+            category,
+            userInfo: {
+                name: userInfo.name,
+                email: userInfo.email
+            },
+            state: stateInfo.name,
+            others
+
+        });
     },
 
     editAction: async (req, res) => {
