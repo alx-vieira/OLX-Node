@@ -41,12 +41,17 @@ module.exports = {
             return;
         }
 
-        if(cat) {
-            const c = await Category.findOne({ slug: cat }).exec();
-            if(c) {
-                cat = c._id.toString();
-            }
+        if(cat.length < 12) {
+            res.json({ error: 'ID de categoria inválido' });
+            return;
         }
+
+        const category = await Category.findOne({ slug: cat }).exec();
+        if(!category) {
+            res.json({ error: 'Categoria não existente' });
+            return;
+        }
+        cat = category._id.toString();
 
         if(price) {
             price = price.replace('.', '').replace(',', '.').replace('R$ ', '');
@@ -233,7 +238,98 @@ module.exports = {
     },
 
     editAction: async (req, res) => {
-        
+        let { id } = req.params;
+        let { title, status, price, priceNegotiable, desc, cat, images, token } = req.body;
+        // const imgRec = '';
+
+        if(id.length < 12) {
+            res.json({ error: 'Não é im ID válido' });
+            return;
+        }
+
+        const ad = await Ad.findById(id).exec();
+        if(!ad) {
+            res.json({ error: 'Anúncio inexistente' });
+            return;
+        }
+
+        const user = await User.findOne({ token }).exec();
+
+        if(user._id.toString() != ad.idUser) {
+            res.json({ error: 'Este anúncio não te pertence' });
+            return;
+        }
+
+        let updates = {};
+
+        if(title) {
+            updates.title = title;
+        }
+
+        if(price) {
+            price = price.replace('.', '').replace(',', '.').replace('R$ ', '');
+            price = parseFloat(price);
+            
+            updates.price = price;
+        }
+
+        if(priceNegotiable) {
+            updates.priceNegotiable = priceNegotiable;
+        }
+
+        if(status) {
+            updates.status = status;
+        }
+
+        if(desc) {
+            updates.description = desc;
+        }
+
+        if(cat) {
+            const category = await Category.findOne({ slug: cat }).exec();
+            if(!category) {
+                res.json({ error: 'Categoria inexistente' });
+                return;
+            }
+
+            updates.category = category._id.toString();
+        }
+
+        if(images) {
+            updates.images = images;
+        }
+
+        await Ad.findByIdAndUpdate(id, { $set: updates });
+
+        if(req.files && req.files.img) {
+            const adImg = await Ad.findById(id);
+            // Se for igual a undefined é pq é um objeto e não um array e então só tenho uma imagem
+            // Se tiver um valor é pq é um array e então mandei várias imagens
+            if(req.files.img.length == undefined) {
+                if(['image/jpeg', 'image/jpg', 'image/png'].includes(req.files.img.mimetype)) {
+                    let url = await addImage(req.files.img.data);
+                        adImg.images.push({
+                            url,
+                            default: false
+                        });
+                }
+            } else {
+                for(let i = 0; i < req.files.img.length > 0; i++) {
+                    if(['image/jpeg', 'image/jpg', 'image/png'].includes(req.files.img[i].mimetype)) {
+                        let url = await addImage(req.files.img[i].data);
+                            adImg.images.push({
+                                url,
+                                default: false
+                            });
+                    }
+                }
+            }
+            adImg.images = [... adImg.images];
+            await adImg.save();
+        }
+
+        res.json({ error: '' });
+
     }
 
 };
